@@ -1,0 +1,24 @@
+app_id = "com.github.forensicht.vimpeg"
+base_resource_path = "/com/github/forensicht/vimpeg/"
+
+icons = [
+    "menu",
+    "loupe-large",
+    "stop-large",
+    "entry-clear",
+    "plus",
+    "minus",
+    "checkmark",
+    "cameras",
+    "play-large",
+    "image",
+    "encode",
+    "pencil-and-paper",
+    "eraser",
+    "funnel",
+    "plus-large",
+    "minus-large",
+    "file-manager",
+    "folder-open-filled",
+    "filter-dismiss-filled",
+]

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+    <gresource prefix="/com/github/forensicht/vimpeg/app/">
+        <file compressed="true" alias="style.css">style.css</file>
+        <file compressed="true" alias="style-dark.css">style-dark.css</file>
+    </gresource>
+
+    <gresource prefix="/com/github/forensicht/vimpeg/icons">
+        <file alias="Vimpeg.svg" preprocess="xml-stripblanks">icons/Vimpeg.svg</file>
+        <file alias="en.png">icons/actions/en.png</file>
+        <file alias="es.png">icons/actions/es.png</file>
+        <file alias="pt.png">icons/actions/pt.png</file>
+    </gresource>
+
+    <gresource prefix="/com/github/forensicht/vimpeg/images">
+        <file alias="layout_2x2.png">images/layout_2x2.png</file>
+        <file alias="layout_2x3.png">images/layout_2x3.png</file>
+        <file alias="layout_2x4.png">images/layout_2x4.png</file>
+        <file alias="layout_3x2.png">images/layout_3x2.png</file>
+        <file alias="layout_3x3.png">images/layout_3x3.png</file>
+        <file alias="layout_3x4.png">images/layout_3x4.png</file>
+        <file alias="layout_4x2.png">images/layout_4x2.png</file>
+        <file alias="layout_4x3.png">images/layout_4x3.png</file>
+        <file alias="layout_4x4.png">images/layout_4x4.png</file>
+        <file alias="layout_4x5.png">images/layout_4x5.png</file>
+        <file alias="layout_5x4.png">images/layout_5x4.png</file>
+        <file alias="layout_5x5.png">images/layout_5x5.png</file>
+        <file alias="layout_6x6.png">images/layout_6x6.png</file>
+        <file alias="layout_8x8.png">images/layout_8x8.png</file>
+        <file alias="layout_10x10.png">images/layout_10x10.png</file>
+    </gresource>
+</gresources>

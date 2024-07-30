@@ -1,0 +1,19 @@
+[package]
+name = "core_vimpeg"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.75"
+image = "0.24.7"
+imageproc = "0.23.0"
+ffmpeg-next = "7.0.1"
+rusttype = "0.9.3"
+
+[dependencies.rust-embed]
+version = "8.2.0"
+features = ["debug-embed"]
+
+[dependencies.tokio]
+version = "1.36"
+features = ["rt", "rt-multi-thread", "fs", "io-util", "macros"]

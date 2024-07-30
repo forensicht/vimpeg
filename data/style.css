@@ -1,0 +1,50 @@
+textview {
+    border: solid rgb(205, 199, 194) 1px;
+    border-radius: 5px;
+}
+
+scale {
+    padding: 0;
+}
+
+flowboxchild > box {
+    border-radius: 5px;
+}
+
+tabbar > revealer > box {
+    background-color: rgb(250, 250, 250);
+}
+
+.icon-opacity {
+    opacity: 0.5;
+}
+
+.icon-opacity:hover {
+    opacity: 1;
+}
+
+.title-header {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.media-item-box {
+    margin: 0;
+    padding: 0;
+}
+
+.border-spacing {
+    border-spacing: 0;
+}
+
+.menu-list > row {
+    padding: 6px;
+}
+
+.rich-list > row {
+    padding: 3px 6px;
+}
+
+.list-padding-bottom {
+	padding-bottom: 100px;
+}
