@@ -25,11 +25,12 @@ pub struct ExtractDialogModel {
 
 #[derive(Debug)]
 pub enum ExtractDialogInput {
+    Show,
+    Hide,
+    Convert,
     SelectLayout(usize),
     OpenFileRequest,
     OpenFileResponse(PathBuf),
-    Convert,
-    Cancel,
     Ignore,
 }
 
@@ -47,7 +48,6 @@ impl Component for ExtractDialogModel {
 
     view! {
         #[root]
-        #[name(dialog)]
         adw::Window {
             set_default_size: (500, 350),
             set_hide_on_close: true,
@@ -65,7 +65,7 @@ impl Component for ExtractDialogModel {
 
                     pack_start = &gtk::Button {
                         set_label: fl!("cancel"),
-                        connect_clicked => ExtractDialogInput::Cancel,
+                        connect_clicked => ExtractDialogInput::Hide,
                     },
 
                     pack_end = &gtk::Button {
@@ -170,22 +170,10 @@ impl Component for ExtractDialogModel {
         ComponentParts { model, widgets }
     }
 
-    fn update_with_view(
-        &mut self,
-        widgets: &mut Self::Widgets,
-        message: Self::Input,
-        sender: ComponentSender<Self>,
-        _root: &Self::Root,
-    ) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
         match message {
-            ExtractDialogInput::SelectLayout(index) => {
-                let layouts_guard = self.layout_list_factory.guard();
-                if let Some(layout_model) = layouts_guard.get(index) {
-                    self.layout_type = Some(layout_model.layout.layout_type);
-                }
-            }
-            ExtractDialogInput::OpenFileRequest => self.open_dialog.emit(OpenDialogMsg::Open),
-            ExtractDialogInput::OpenFileResponse(path) => self.file_path = path,
+            ExtractDialogInput::Show => root.present(),
+            ExtractDialogInput::Hide => root.close(),
             ExtractDialogInput::Convert => {
                 if !self.file_path.exists() {
                     return;
@@ -195,14 +183,19 @@ impl Component for ExtractDialogModel {
                     sender
                         .output(ExtractDialogOutput::Response(layout_type, file_path))
                         .unwrap_or_default();
-                    widgets.dialog.close();
+                    sender.input(ExtractDialogInput::Hide);
                 }
             }
-            ExtractDialogInput::Cancel => widgets.dialog.close(),
+            ExtractDialogInput::SelectLayout(index) => {
+                let layouts_guard = self.layout_list_factory.guard();
+                if let Some(layout_model) = layouts_guard.get(index) {
+                    self.layout_type = Some(layout_model.layout.layout_type);
+                }
+            }
+            ExtractDialogInput::OpenFileRequest => self.open_dialog.emit(OpenDialogMsg::Open),
+            ExtractDialogInput::OpenFileResponse(path) => self.file_path = path,
             ExtractDialogInput::Ignore => {}
         }
-
-        self.update_view(widgets, sender);
     }
 }
 

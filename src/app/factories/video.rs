@@ -17,11 +17,19 @@ pub struct VideoModel {
     pub video: models::Video,
     pub index: DynamicIndex,
     pixbuf: Option<Pixbuf>,
+    is_visible: bool,
+}
+
+impl VideoModel {
+    pub fn is_visible(&self) -> bool {
+        self.is_visible
+    }
 }
 
 #[derive(Debug)]
 pub enum VideoInput {
     Selected(bool),
+    SetVisible(bool),
     ZoomIn(i32),
     ZoomOut(i32),
 }
@@ -149,6 +157,10 @@ impl AsyncFactoryComponent for VideoModel {
             }
             Err(err) => {
                 tracing::error!("{} {}", fl!("generic-error"), err);
+                while let Some(e) = err.source() {
+                    tracing::error!("Caused by: {}", e);
+                }
+
                 None
             }
         };
@@ -157,6 +169,7 @@ impl AsyncFactoryComponent for VideoModel {
             video,
             index: index.clone(),
             pixbuf,
+            is_visible: true,
         }
     }
 
@@ -167,6 +180,9 @@ impl AsyncFactoryComponent for VideoModel {
                 sender
                     .output(VideoOutput::Selected(is_selected))
                     .unwrap_or_default();
+            }
+            VideoInput::SetVisible(is_visible) => {
+                self.is_visible = is_visible;
             }
             VideoInput::ZoomIn(size) => {
                 self.video.thumbnail_size = size;

@@ -9,14 +9,14 @@ use relm4::{
     },
     factory::AsyncFactoryVecDeque,
     gtk,
-    gtk::prelude::{ButtonExt, FlowBoxChildExt, GtkWindowExt, OrientableExt, WidgetExt},
+    gtk::prelude::{ButtonExt, FlowBoxChildExt, OrientableExt, WidgetExt},
     Component, ComponentController, Controller, RelmIterChildrenExt,
 };
 use relm4_icons::icon_names;
 
 use super::toolbar::{ToolBarInput, ToolBarModel, ToolBarOutput};
 use crate::app::{
-    components::extract_dialog::{ExtractDialogModel, ExtractDialogOutput},
+    components::extract_dialog::{ExtractDialogInput, ExtractDialogModel, ExtractDialogOutput},
     factories::video::{VideoInput, VideoModel, VideoOutput},
     models,
 };
@@ -219,8 +219,7 @@ impl AsyncComponent for VideoListModel {
                 self.on_play_video(index, &sender).await;
             }
             VideoListInput::OpenExtractDialog => {
-                let convert_dialog = self.convert_dialog.widget();
-                convert_dialog.present();
+                self.convert_dialog.emit(ExtractDialogInput::Show);
             }
             VideoListInput::OpenExtractResponse(layout_type, dst_path) => {
                 self.on_open_convert_response(layout_type, dst_path, &sender)
@@ -297,7 +296,12 @@ impl AsyncComponent for VideoListModel {
                             guard.push_back(video);
                         }
                     }
-                    Err(err) => tracing::error!("{}: {}", fl!("generic-error"), err),
+                    Err(err) => {
+                        tracing::error!("{}: {}", fl!("generic-error"), err);
+                        while let Some(e) = err.source() {
+                            tracing::error!("Caused by: {}", e);
+                        }
+                    }
                 }
                 sender
                     .output(VideoListOutput::SearchCompleted(videos_found))
@@ -379,7 +383,12 @@ impl VideoListModel {
             .guard()
             .iter_mut()
             .for_each(|video_model| {
-                video_model.unwrap().video.is_selected = is_selected;
+                let video_model = video_model.unwrap();
+                if !is_selected {
+                    video_model.video.is_selected = is_selected;
+                } else if video_model.is_visible() {
+                    video_model.video.is_selected = is_selected;
+                }
             });
     }
 
@@ -408,9 +417,11 @@ impl VideoListModel {
                 is_visible = false;
             }
 
-            let index = video_model.index.current_index() as i32;
+            let index = video_model.index.current_index();
+            self.video_list_factory
+                .send(index, VideoInput::SetVisible(is_visible));
             video_widget
-                .child_at_index(index)
+                .child_at_index(index as i32)
                 .as_ref()
                 .unwrap()
                 .set_visible(is_visible);

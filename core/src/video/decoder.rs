@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use anyhow::{self, Context};
+use bytes::Bytes;
 use ffmpeg::{format, media::Type, software::scaling, util::frame};
 use ffmpeg_next as ffmpeg;
 use image::{imageops, DynamicImage, GenericImage, ImageBuffer, Rgba};
@@ -15,7 +16,7 @@ struct Fonts;
 
 #[derive(Debug)]
 pub struct VideoFrame {
-    pub data: Vec<u8>,
+    pub data: Bytes,
     pub timestamp: f64,
 }
 
@@ -31,7 +32,7 @@ pub struct VideoDump {
 pub struct VideoThumb {
     pub width: u32,
     pub height: u32,
-    pub data: Option<Vec<u8>>,
+    pub data: Option<Bytes>,
 }
 
 pub fn get_thumbnail<P: AsRef<Path>>(video_path: P) -> anyhow::Result<VideoThumb> {
@@ -93,7 +94,7 @@ pub fn get_thumbnail<P: AsRef<Path>>(video_path: P) -> anyhow::Result<VideoThumb
     let video_thumb = VideoThumb {
         width: decoder.width(),
         height: decoder.height(),
-        data: Some(scaled_frame.data(0).to_owned()),
+        data: Some(Bytes::from(scaled_frame.data(0).to_owned())),
     };
 
     Ok(video_thumb)
@@ -182,7 +183,10 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
                     };
 
                     let data = rgb_frame.data(0).to_owned();
-                    let video_frame = VideoFrame { data, timestamp };
+                    let video_frame = VideoFrame {
+                        data: Bytes::from(data),
+                        timestamp,
+                    };
                     video_dump.frames.insert(frame_index, video_frame);
 
                     frame_index += 1;
@@ -277,7 +281,7 @@ fn frames_to_image(dump: &VideoDump) -> anyhow::Result<Vec<DynamicImage>> {
     for i in 0..dump.nframes {
         if let Some(frame) = dump.frames.get(&i) {
             let img_buf =
-                ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, frame.data.to_owned())
+                ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, frame.data.to_vec())
                     .unwrap();
             let mut img = DynamicImage::ImageRgba8(img_buf);
 
