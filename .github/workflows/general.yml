@@ -22,7 +22,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install ffmpeg -y
+        run: sudo apt update && sudo apt install ffmpeg -y
 
       - name: Run tests
         run: cargo test --workspace
@@ -50,5 +50,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
+      - name: Install ffmpeg
+        run: sudo apt update && sudo apt install ffmpeg -y    
+        
       - name: Linting
         run: cargo clippy -- -D warnings
