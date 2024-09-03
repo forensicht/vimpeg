@@ -1,4 +1,3 @@
-
 pub const ZOOM_SIZE: i32 = 32;
 pub const THUMBNAIL_SIZE: i32 = 160;
 

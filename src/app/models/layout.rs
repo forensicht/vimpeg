@@ -39,9 +39,9 @@ impl LayoutType {
     }
 }
 
-impl ToString for LayoutType {
-    fn to_string(&self) -> String {
-        format!("L{}x{}", self.value().0, self.value().1)
+impl std::fmt::Display for LayoutType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "L{}x{}", self.value().0, self.value().1)
     }
 }
 

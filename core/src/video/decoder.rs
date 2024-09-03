@@ -65,9 +65,8 @@ pub fn get_thumbnail<P: AsRef<Path>>(video_path: P) -> anyhow::Result<VideoThumb
 
         // repeatedly send packet until a frame can be extracted
         let mut decoded = frame::Video::empty();
-        match decoder.receive_frame(&mut decoded) {
-            Ok(()) => break decoded,
-            _ => {}
+        if let Ok(()) = decoder.receive_frame(&mut decoded) {
+            break decoded;
         }
     };
 
@@ -108,16 +107,18 @@ pub fn dump_video_frames_into_image<P: AsRef<Path>>(
 ) -> anyhow::Result<()> {
     let nframes = rows * cols;
     let dump = dump_frame(video_path, nframes)?;
-    concat_frames(dump, image_path, cols, rows)?;
+    let img = concat_frames(dump, cols, rows)?;
+    img.save(&image_path).context(format!(
+        "failed to save image {}",
+        image_path.as_ref().display()
+    ))?;
     Ok(())
 }
 
 pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Result<VideoDump> {
     ffmpeg::init()?;
 
-    let mut options = ffmpeg::Dictionary::new();
-    options.set("framerate", "10");
-
+    let options = ffmpeg::Dictionary::new();
     let mut input_format_context = ffmpeg::format::input_with_dictionary(&video_path, options)?;
 
     // shows a dump of the video
@@ -147,9 +148,11 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
         (stream_index, frame_rate, time_base, decoder)
     };
 
-    let mut video_dump = VideoDump::default();
-    video_dump.width = decoder.width();
-    video_dump.height = decoder.height();
+    let mut video_dump = VideoDump {
+        width: decoder.width(),
+        height: decoder.height(),
+        ..Default::default()
+    };
 
     let mut sws_context = scaling::Context::get(
         decoder.format(),
@@ -216,12 +219,7 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
     Ok(video_dump)
 }
 
-fn concat_frames<P: AsRef<Path>>(
-    dump: VideoDump,
-    image_path: P,
-    cols: usize,
-    rows: usize,
-) -> anyhow::Result<()> {
+fn concat_frames(dump: VideoDump, cols: usize, rows: usize) -> anyhow::Result<DynamicImage> {
     let frames = frames_to_image(&dump)?;
     let img_width_out: u32 = frames.iter().map(|img| img.width()).take(cols).sum();
     let img_height_out: u32 = frames.iter().map(|img| img.height()).take(rows).sum();
@@ -242,19 +240,15 @@ fn concat_frames<P: AsRef<Path>>(
         accumulated_width += img.width();
     }
 
-    imgbuf.save(&image_path).context(format!(
-        "failed to save image {}",
-        image_path.as_ref().display()
-    ))?;
+    let dynamic_img = DynamicImage::ImageRgba8(imgbuf);
 
-    Ok(())
+    Ok(dynamic_img)
 }
 
 fn frames_to_image(dump: &VideoDump) -> anyhow::Result<Vec<DynamicImage>> {
     let width = dump.width;
     let height = dump.height;
-    let mut frames = vec![];
-    frames.reserve(dump.nframes);
+    let mut frames = Vec::with_capacity(dump.nframes);
 
     // font settings
     let (font, font_scale, font_x, font_y) = {
@@ -263,9 +257,9 @@ fn frames_to_image(dump: &VideoDump) -> anyhow::Result<Vec<DynamicImage>> {
         // let font = Vec::from(include_bytes!("DejaVuSans.ttf") as &[u8]);
         let font = rusttype::Font::try_from_vec(font).unwrap();
         let font_height = if height > width {
-            (24.0 * width as f32) / 360 as f32
+            (24.0 * width as f32) / 360_f32
         } else {
-            (14.0 * width as f32) / 360 as f32
+            (14.0 * width as f32) / 360_f32
         };
         let font_scale = rusttype::Scale {
             x: font_height * 2.0,
@@ -318,103 +312,45 @@ fn frames_to_image(dump: &VideoDump) -> anyhow::Result<Vec<DynamicImage>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image;
 
     #[test]
     fn test_video_thumbnail() {
-        let filename = "D:\\video\\vid00.mp4";
-        match get_thumbnail(filename) {
-            Ok(thumb) => {
-                save_file_thumb(&thumb).expect("error saving file thumb");
-                assert!(true);
-            }
-            Err(err) => assert!(false, "{err}"),
-        }
-    }
+        let filename = "../data/video/vid.mp4";
+        let video_thumb = get_thumbnail(filename).expect("Failed to get thumbnail.");
 
-    #[test]
-    fn test_dump_frames_to_image() {
-        let video_path = "D:\\video\\vid00.mp4";
-        let image_path = "D:\\video\\frames\\vid00.jpeg";
-        let cols = 6;
-        let rows: usize = 6;
-
-        match dump_video_frames_into_image(video_path, image_path, cols, rows) {
-            Err(err) => assert!(false, "{err}"),
-            _ => assert!(true),
-        }
+        // Assert
+        assert_ne!(video_thumb.data, None);
     }
 
     #[test]
     fn test_video_dump_frame() {
-        let filename = "D:\\video\\vid00.mp4";
-        match dump_frame(filename, 36) {
-            Ok(dump) => {
-                println!("Frames: {}", dump.nframes);
-                save_file_dump_frame(&dump).expect("error saving file dump frame");
-                assert!(true);
-            }
-            Err(err) => assert!(false, "{err}"),
-        }
+        let filename = "../data/video/vid.mp4";
+        let video_dump = dump_frame(filename, 36).expect("Failed to dump frame.");
+
+        // Assert
+        assert_eq!(video_dump.nframes, 36);
     }
 
     #[test]
     fn test_video_dump_frame_error() {
-        let filename = "D:\\video\\vid00.mp4";
-        match dump_frame(filename, 376) {
-            Ok(_) => assert!(true),
-            Err(err) => {
-                eprintln!("{err}");
-                assert!(true);
-            }
-        }
+        let filename = "../data/video/vid.mp4";
+        let is_error = dump_frame(filename, 400).is_err();
+
+        // Assert
+        assert_eq!(is_error, true);
     }
 
     #[test]
     fn test_video_concat_frames() {
-        let filename = "D:\\video\\vid00.mp4";
-        let dst_path = "D:\\video\\frames\\vid00.jpeg";
+        let filename = "../data/video/vid.mp4";
         let cols = 6;
         let rows: usize = 6;
         let nframes = cols * rows;
 
-        if let Ok(dump) = dump_frame(filename, nframes) {
-            match concat_frames(dump, dst_path, cols, rows) {
-                Err(err) => assert!(false, "{err}"),
-                _ => (),
-            }
-        } else {
-            assert!(false);
-        }
-    }
+        let dump = dump_frame(filename, nframes).expect("Failed to dump frame.");
+        let _ = concat_frames(dump, cols, rows).expect("Failed to concat frames.");
 
-    fn save_file_dump_frame(dump: &VideoDump) -> anyhow::Result<()> {
-        let width = dump.width;
-        let height = dump.height;
-        let nframes = dump.nframes;
-        let frames = &dump.frames;
-
-        println!("nframes: {} - len: {}", nframes, frames.len());
-
-        for index in 0..nframes {
-            let path = format!("D:\\video\\frames\\vid{}.jpeg", index);
-            if let Some(buffer) = frames.get(&index) {
-                image::save_buffer(path, &buffer.data, width, height, image::ColorType::Rgba8)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn save_file_thumb(thumb: &VideoThumb) -> anyhow::Result<()> {
-        let path = "D:\\video\\vid_thumb.jpeg";
-        let width = thumb.width;
-        let height = thumb.height;
-
-        if let Some(buffer) = thumb.data.as_ref() {
-            image::save_buffer(path, buffer, width, height, image::ColorType::Rgba8)?;
-        }
-
-        Ok(())
+        // Assert
+        assert!(true);
     }
 }

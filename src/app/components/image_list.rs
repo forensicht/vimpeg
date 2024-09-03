@@ -318,18 +318,15 @@ impl ImageListModel {
     async fn on_view_image(&mut self, index: usize, sender: &AsyncComponentSender<ImageListModel>) {
         if let Some(image_model) = self.image_list_factory.guard().get(index) {
             let image_name = image_model.image.path.as_str();
-            match open::that(image_name) {
-                Err(_) => {
-                    let msg = format!(
-                        "{} {}",
-                        fl!("open-image-error"),
-                        image_model.image.name.as_str()
-                    );
-                    sender
-                        .output(ImageListOutput::Notify(msg, 3))
-                        .unwrap_or_default();
-                }
-                _ => {}
+            if open::that(image_name).is_err() {
+                let msg = format!(
+                    "{} {}",
+                    fl!("open-image-error"),
+                    image_model.image.name.as_str()
+                );
+                sender
+                    .output(ImageListOutput::Notify(msg, 3))
+                    .unwrap_or_default();
             }
         }
     }
@@ -342,14 +339,12 @@ impl ImageListModel {
             if self.thumbnail_size < 320 {
                 self.thumbnail_size += ZOOM_SIZE;
             }
-        } else {
-            if self.thumbnail_size > THUMBNAIL_SIZE {
-                let mut thumb_size = self.thumbnail_size - ZOOM_SIZE;
-                if thumb_size < THUMBNAIL_SIZE {
-                    thumb_size = THUMBNAIL_SIZE;
-                }
-                self.thumbnail_size = thumb_size;
+        } else if self.thumbnail_size > THUMBNAIL_SIZE {
+            let mut thumb_size = self.thumbnail_size - ZOOM_SIZE;
+            if thumb_size < THUMBNAIL_SIZE {
+                thumb_size = THUMBNAIL_SIZE;
             }
+            self.thumbnail_size = thumb_size;
         }
 
         for image_model in self.image_list_factory.iter() {

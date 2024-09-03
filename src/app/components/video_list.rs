@@ -316,10 +316,7 @@ impl VideoListModel {
         sender.oneshot_command(async move {
             match service::search_videos(path).await {
                 Ok(videos) => {
-                    let videos = videos
-                        .iter()
-                        .map(|video| models::Video::from(video))
-                        .collect();
+                    let videos = videos.iter().map(models::Video::from).collect();
                     VideoListCommandOutput::SearchCompleted(Ok(videos))
                 }
                 Err(err) => VideoListCommandOutput::SearchCompleted(Err(err)),
@@ -330,18 +327,16 @@ impl VideoListModel {
     async fn on_play_video(&mut self, index: usize, sender: &AsyncComponentSender<VideoListModel>) {
         if let Some(video_model) = self.video_list_factory.guard().get(index) {
             let video_name = video_model.video.path.as_str();
-            match open::that(video_name) {
-                Err(_) => {
-                    let msg = format!(
-                        "{} {}",
-                        fl!("open-video-error"),
-                        video_model.video.name.as_str()
-                    );
-                    sender
-                        .output(VideoListOutput::Notify(msg, 3))
-                        .unwrap_or_default();
-                }
-                _ => {}
+
+            if open::that(video_name).is_err() {
+                let msg = format!(
+                    "{} {}",
+                    fl!("open-video-error"),
+                    video_model.video.name.as_str()
+                );
+                sender
+                    .output(VideoListOutput::Notify(msg, 3))
+                    .unwrap_or_default();
             }
         }
     }
@@ -360,7 +355,7 @@ impl VideoListModel {
             .map(|video_model| video_model.unwrap().video.path.clone())
             .collect();
 
-        if videos_list.len() > 0 {
+        if !videos_list.is_empty() {
             sender
                 .output(VideoListOutput::ExtractVideos(
                     videos_list,
@@ -384,9 +379,7 @@ impl VideoListModel {
             .iter_mut()
             .for_each(|video_model| {
                 let video_model = video_model.unwrap();
-                if !is_selected {
-                    video_model.video.is_selected = is_selected;
-                } else if video_model.is_visible() {
+                if !is_selected || video_model.is_visible() {
                     video_model.video.is_selected = is_selected;
                 }
             });
@@ -405,15 +398,14 @@ impl VideoListModel {
                 is_visible = video.name.to_lowercase().contains(&query.to_lowercase());
             }
 
-            if !filter.is_size_0 && video.size == 0 {
-                is_visible = false;
-            } else if !filter.is_size_30 && (video.size > 0 && video.size <= 30) {
-                is_visible = false;
-            } else if !filter.is_size_100 && (video.size > 30 && video.size <= 100) {
-                is_visible = false;
-            } else if !filter.is_size_500 && (video.size > 100 && video.size <= 500) {
-                is_visible = false;
-            } else if !filter.is_size_greater_500 && video.size > 500 {
+            #[allow(clippy::nonminimal_bool)]
+            if (!filter.is_size_0 && video.size == 0)
+                || (!filter.is_size_30 && (video.size > 0 && video.size <= 30))
+                || (!filter.is_size_100 && (video.size > 30 && video.size <= 100))
+                || (!filter.is_size_100 && (video.size > 30 && video.size <= 100))
+                || (!filter.is_size_500 && (video.size > 100 && video.size <= 500))
+                || (!filter.is_size_greater_500 && video.size > 500)
+            {
                 is_visible = false;
             }
 
@@ -441,14 +433,12 @@ impl VideoListModel {
             if self.thumbnail_size < 320 {
                 self.thumbnail_size += ZOOM_SIZE;
             }
-        } else {
-            if self.thumbnail_size > THUMBNAIL_SIZE {
-                let mut thumb_size = self.thumbnail_size - ZOOM_SIZE;
-                if thumb_size < THUMBNAIL_SIZE {
-                    thumb_size = THUMBNAIL_SIZE;
-                }
-                self.thumbnail_size = thumb_size;
+        } else if self.thumbnail_size > THUMBNAIL_SIZE {
+            let mut thumb_size = self.thumbnail_size - ZOOM_SIZE;
+            if thumb_size < THUMBNAIL_SIZE {
+                thumb_size = THUMBNAIL_SIZE;
             }
+            self.thumbnail_size = thumb_size;
         }
 
         for video_model in self.video_list_factory.iter() {

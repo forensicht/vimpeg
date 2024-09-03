@@ -1,10 +1,7 @@
+use anyhow;
 use std::path::Path;
 
-use anyhow;
-
-const MEDIA_TYPE_VIDEOS: &[&str] = &[
-    "mpeg", "mpg", "mp4", "avi", "ogg", "webm", "flv",
-];
+const MEDIA_TYPE_VIDEOS: &[&str] = &["mpeg", "mpg", "mp4", "avi", "ogg", "webm", "flv"];
 
 #[derive(Debug, Clone)]
 pub struct Video {
@@ -33,17 +30,14 @@ pub async fn search_videos<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Video>
 
         videos.push(video);
     }
-    
+
     Ok(videos)
 }
 
 fn is_video(entry: &Path) -> bool {
-    match entry.extension() {
-        Some(ext) if MEDIA_TYPE_VIDEOS.contains(
-            &ext.to_string_lossy().to_lowercase().as_str()
-        ) => true,
-        _ => false,
-    }
+    matches!(
+        entry.extension(), 
+        Some(ext) if MEDIA_TYPE_VIDEOS.contains(&ext.to_string_lossy().to_lowercase().as_str()))
 }
 
 #[cfg(test)]
@@ -52,10 +46,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_videos() {
-        let path = Path::new("D:\\Videos");
-        match search_videos(path).await {
-            Ok(videos) => println!("{:#?}", videos),
-            Err(err) => eprintln!("{:?}", err),
-        }
+        let path = Path::new("../data/video");
+        let videos = search_videos(path).await.expect("Failed to search videos.");
+
+        // Assert
+        assert_eq!(videos.is_empty(), false);
     }
 }

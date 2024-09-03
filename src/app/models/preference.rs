@@ -1,7 +1,7 @@
-use core::fmt;
-use std::str::FromStr;
 use anyhow::Result;
+use core::fmt;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum ColorScheme {
@@ -56,9 +56,9 @@ impl FromStr for Language {
         match input {
             "en" => Ok(Self::English),
             "pt" => Ok(Self::Portuguese),
-            "es" => Ok(Self::Spanish), 
+            "es" => Ok(Self::Spanish),
             _ => Err("Language does not exist"),
-         }
+        }
     }
 }
 
@@ -79,7 +79,10 @@ impl Default for Preference {
 
 impl Preference {
     pub fn new(color_scheme: ColorScheme, language: Language) -> Self {
-        Self { color_scheme, language }
+        Self {
+            color_scheme,
+            language,
+        }
     }
 }
 

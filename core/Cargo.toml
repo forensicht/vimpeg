@@ -16,5 +16,5 @@ version = "8.2.0"
 features = ["debug-embed"]
 
 [dependencies.tokio]
-version = "1.36"
+version = "1.40.0"
 features = ["rt", "rt-multi-thread", "fs", "io-util", "macros"]

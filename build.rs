@@ -1,17 +1,12 @@
 fn main() -> std::io::Result<()> {
     glib_build_tools::compile_resources(
-        &["data"], 
-        "data/resources.gresource.xml", 
+        &["data"],
+        "data/resources.gresource.xml",
         "resources.gresource",
     );
 
     if cfg!(target_os = "windows") {
-        use std::{
-            env,
-            fs,
-            path::PathBuf,
-            process::Command,
-        };
+        use std::{env, fs, path::PathBuf, process::Command};
 
         let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
