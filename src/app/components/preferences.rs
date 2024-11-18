@@ -86,7 +86,7 @@ impl AsyncComponent for PreferencesModel {
                             add = &adw::PreferencesGroup {
                                 set_title: fl!("language"),
                                 adw::ActionRow {
-                                    set_title: fl!("englis"),
+                                    set_title: fl!("english"),
                                     add_prefix = &gtk::Box {
                                         set_halign: gtk::Align::Center,
                                         set_valign: gtk::Align::Center,
