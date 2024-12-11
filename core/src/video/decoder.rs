@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use anyhow::{self, Context};
 use bytes::Bytes;
 use ffmpeg::{format, media::Type, software::scaling, util::frame};
-use ffmpeg_next as ffmpeg;
+use ffmpeg_next::{self as ffmpeg};
 use image::{imageops, DynamicImage, GenericImage, ImageBuffer, Rgba};
 use imageproc::drawing::{draw_text_mut, text_size};
 use rust_embed::RustEmbed;
@@ -119,11 +119,12 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
     ffmpeg::init()?;
 
     let options = ffmpeg::Dictionary::new();
+    // options.set("r", "60");
     let mut input_format_context = ffmpeg::format::input_with_dictionary(&video_path, options)?;
 
     // shows a dump of the video
-    // let video_path = video_path.as_os_str().to_str().unwrap();
-    // format::context::input::dump(&input_format_context, 0, Some(video_path));
+    let video_path = video_path.as_ref().as_os_str().to_str().unwrap();
+    format::context::input::dump(&input_format_context, 0, Some(video_path));
 
     let (video_stream_index, frame_rate, time_base, mut decoder) = {
         let stream = input_format_context
@@ -131,7 +132,18 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
             .best(Type::Video)
             .ok_or(ffmpeg::Error::StreamNotFound)?;
 
-        let total_frames = stream.frames();
+        let total_frames = if stream.frames() > 0 {
+            stream.frames()
+        } else if stream.rate().0 > 0 && input_format_context.duration() > 0 {
+            // calculates the number of frames
+            let frame_rate = stream.rate().0 as f64;
+            let duration = input_format_context.duration() as f64 / 1_000_000f64; // to seconds
+            let nb_frames = duration * frame_rate;
+            nb_frames as i64
+        } else {
+            0
+        };
+
         if nframes as i64 > total_frames {
             anyhow::bail!(
                 "nframes must be smaller than the total video frames [{}]",
@@ -142,6 +154,7 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
         let frame_rate = total_frames / nframes as i64;
         let time_base = f64::from(stream.time_base());
         let stream_index = stream.index();
+
         let decode_context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
         let decoder = decode_context.decoder().video()?;
 
@@ -201,8 +214,6 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
 
             Ok(())
         };
-
-    // decoder.skip_frame(ffmpeg::codec::discard::Discard::All);
 
     for (stream, packet) in input_format_context.packets() {
         if stream.index() == video_stream_index {

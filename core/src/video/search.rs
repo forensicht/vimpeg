@@ -1,7 +1,9 @@
 use anyhow;
 use std::path::Path;
 
-const MEDIA_TYPE_VIDEOS: &[&str] = &["mpeg", "mpg", "mp4", "avi", "ogg", "webm", "flv", "mov"];
+const MEDIA_TYPE_VIDEOS: &[&str] = &[
+    "mpeg", "mpg", "mp4", "avi", "ogg", "webm", "flv", "mov", "mkv",
+];
 
 #[derive(Debug, Clone)]
 pub struct Video {
