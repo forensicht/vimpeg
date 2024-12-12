@@ -8,7 +8,7 @@ use image::{imageops, DynamicImage, GenericImage, ImageBuffer, Rgba};
 use imageproc::drawing::{draw_text_mut, text_size};
 use rust_embed::RustEmbed;
 
-const FRAME_DIMENSION: u32 = 250;
+const FRAME_DIMENSION: u32 = 300;
 
 #[derive(RustEmbed)]
 #[folder = "../data/fonts/"]
@@ -123,8 +123,8 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
     let mut input_format_context = ffmpeg::format::input_with_dictionary(&video_path, options)?;
 
     // shows a dump of the video
-    let video_path = video_path.as_ref().as_os_str().to_str().unwrap();
-    format::context::input::dump(&input_format_context, 0, Some(video_path));
+    // let video_path = video_path.as_ref().as_os_str().to_str().unwrap();
+    // format::context::input::dump(&input_format_context, 0, Some(video_path));
 
     let (video_stream_index, frame_rate, time_base, mut decoder) = {
         let stream = input_format_context
