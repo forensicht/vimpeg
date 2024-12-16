@@ -119,7 +119,6 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
     ffmpeg::init()?;
 
     let options = ffmpeg::Dictionary::new();
-    // options.set("r", "60");
     let mut input_format_context = ffmpeg::format::input_with_dictionary(&video_path, options)?;
 
     // shows a dump of the video
@@ -136,8 +135,13 @@ pub fn dump_frame<P: AsRef<Path>>(video_path: P, nframes: usize) -> anyhow::Resu
             stream.frames()
         } else if stream.rate().0 > 0 && input_format_context.duration() > 0 {
             // calculates the number of frames
-            let frame_rate = stream.rate().0 as f64;
-            let duration = input_format_context.duration() as f64 / 1_000_000f64; // to seconds
+            let frame_rate = if stream.rate().denominator() > 0 {
+                stream.rate().numerator() as f64 / stream.rate().denominator() as f64
+            } else {
+                0f64
+            };
+            let duration =
+                input_format_context.duration() as f64 / f64::from(ffmpeg::ffi::AV_TIME_BASE); // to seconds
             let nb_frames = duration * frame_rate;
             nb_frames as i64
         } else {
@@ -268,9 +272,9 @@ fn frames_to_image(dump: &VideoDump) -> anyhow::Result<Vec<DynamicImage>> {
         // let font = Vec::from(include_bytes!("DejaVuSans.ttf") as &[u8]);
         let font = rusttype::Font::try_from_vec(font).unwrap();
         let font_height = if height > width {
-            (24.0 * width as f32) / 360_f32
+            (20.0 * width as f32) / 360_f32
         } else {
-            (14.0 * width as f32) / 360_f32
+            (10.0 * width as f32) / 360_f32
         };
         let font_scale = rusttype::Scale {
             x: font_height * 2.0,

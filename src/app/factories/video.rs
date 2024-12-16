@@ -1,10 +1,14 @@
 use relm4::{
     factory::{AsyncFactoryComponent, AsyncFactorySender, DynamicIndex},
-    gtk,
-    gtk::gdk_pixbuf::{Colorspace, Pixbuf},
-    gtk::glib,
-    gtk::pango,
-    gtk::prelude::{CheckButtonExt, GestureExt, GestureSingleExt, OrientableExt, WidgetExt},
+    gtk::{
+        self, gdk,
+        gdk_pixbuf::{Colorspace, Pixbuf},
+        glib, pango,
+        prelude::{
+            BoxExt, ButtonExt, CheckButtonExt, GestureExt, GestureSingleExt, OrientableExt,
+            PopoverExt, WidgetExt,
+        },
+    },
     loading_widgets::LoadingWidgets,
     view, RelmWidgetExt,
 };
@@ -32,6 +36,7 @@ pub enum VideoInput {
     SetVisible(bool),
     ZoomIn(i32),
     ZoomOut(i32),
+    ExtractFrames,
 }
 
 #[derive(Debug)]
@@ -48,6 +53,7 @@ impl AsyncFactoryComponent for VideoModel {
     type ParentWidget = gtk::FlowBox;
 
     view! {
+        #[root]
         root = gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             set_margin_all: 2,
@@ -67,10 +73,10 @@ impl AsyncFactoryComponent for VideoModel {
                     set_pixbuf: self.pixbuf.as_ref(),
                     add_controller = gtk::GestureClick {
                         set_button: 3,
-                        connect_released[checkbox] => move |gesture, _, _, _| {
+                        connect_released[popover] => move |gesture, _, x, y| {
                             gesture.set_state(gtk::EventSequenceState::Claimed);
-                            let is_active = !checkbox.is_active();
-                            checkbox.set_active(is_active);
+                            popover.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                            popover.popup();
                         }
                     }
                 },
@@ -95,8 +101,121 @@ impl AsyncFactoryComponent for VideoModel {
                 set_halign: gtk::Align::Fill,
                 set_max_width_chars: 25,
                 set_ellipsize: pango::EllipsizeMode::End,
+            },
+
+            #[name(popover)]
+            gtk::Popover {
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+
+                    gtk::Frame {
+                        gtk::ListBox {
+                            set_selection_mode: gtk::SelectionMode::None,
+                            set_show_separators: false,
+
+                            gtk::ListBoxRow {
+                                gtk::Box {
+                                    set_spacing: 40,
+                                    set_margin_all: 2,
+
+                                    gtk::Label {
+                                        set_label: fl!("duration"),
+                                        set_halign: gtk::Align::Start,
+                                    },
+
+                                    gtk::Label {
+                                        set_label: &self.video.duration,
+                                        set_halign: gtk::Align::End,
+                                        set_hexpand: true,
+                                    },
+                                }
+                            },
+
+                            gtk::ListBoxRow {
+                                gtk::Box {
+                                    set_spacing: 40,
+                                    set_margin_all: 2,
+
+                                    gtk::Label {
+                                        set_label: fl!("frame-rate"),
+                                        set_halign: gtk::Align::Start,
+                                    },
+
+                                    gtk::Label {
+                                        set_label: &self.video.rate,
+                                        set_halign: gtk::Align::End,
+                                        set_hexpand: true,
+                                    },
+                                }
+                            },
+
+                            gtk::ListBoxRow {
+                                gtk::Box {
+                                    set_spacing: 40,
+                                    set_margin_all: 2,
+
+                                    gtk::Label {
+                                        set_label: fl!("total-frames"),
+                                        set_halign: gtk::Align::Start,
+                                    },
+
+                                    gtk::Label {
+                                        set_label: &self.video.nb_frames.to_string(),
+                                        set_halign: gtk::Align::End,
+                                        set_hexpand: true,
+                                    },
+                                }
+                            },
+
+                            gtk::ListBoxRow {
+                                gtk::Box {
+                                    set_spacing: 40,
+                                    set_margin_all: 2,
+
+                                    gtk::Label {
+                                        set_label: fl!("frame-width"),
+                                        set_halign: gtk::Align::Start,
+                                    },
+
+                                    gtk::Label {
+                                        set_label: &self.video.width.to_string(),
+                                        set_halign: gtk::Align::End,
+                                        set_hexpand: true,
+                                    },
+                                }
+                            },
+
+                            gtk::ListBoxRow {
+                                gtk::Box {
+                                    set_spacing: 40,
+                                    set_margin_all: 2,
+
+                                    gtk::Label {
+                                        set_label: fl!("frame-height"),
+                                        set_halign: gtk::Align::Start,
+                                    },
+
+                                    gtk::Label {
+                                        set_label: &self.video.height.to_string(),
+                                        set_halign: gtk::Align::End,
+                                        set_hexpand: true,
+                                    },
+                                }
+                            },
+                        },
+                    },
+
+                    gtk::Button {
+                        set_label: fl!("extract-frames"),
+                        set_halign: gtk::Align::Fill,
+                        set_margin_bottom: 4,
+                        set_margin_top: 4,
+                        set_css_classes: &["suggested-action"],
+                        connect_clicked => VideoInput::ExtractFrames,
+                    },
+                }
             }
-        }
+        },
     }
 
     fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
@@ -189,6 +308,9 @@ impl AsyncFactoryComponent for VideoModel {
             }
             VideoInput::ZoomOut(size) => {
                 self.video.thumbnail_size = size;
+            }
+            VideoInput::ExtractFrames => {
+                println!("{}", self.video.name);
             }
         }
     }

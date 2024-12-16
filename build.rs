@@ -18,6 +18,8 @@ fn main() -> std::io::Result<()> {
             .arg("icon.rc")
             .arg("icon.lib")
             .spawn()
+            .unwrap()
+            .wait()
             .unwrap();
 
         println!(

@@ -17,6 +17,11 @@ destination-directory = Destination directory
 search = Search
 directory = Directory
 select-directory = Select directory
+duration = Duration
+frame-rate = Frame rate
+total-frames = Total frames
+frame-width = Frame width
+frame-height = Frame height
 
 # Toolbar
 zoom-out = Zoom out

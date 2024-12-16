@@ -17,6 +17,11 @@ destination-directory = Directorio de destino
 search = Buscar
 directory = Directorio
 select-directory = Seleccionar directorio
+duration = Duración
+frame-rate = Velocidad de cuadros
+total-frames = Marcos totales
+frame-width = Ancho del marco
+frame-height = Altura del marco
 
 # Toolbar
 zoom-out = Disminuir el zoom
