@@ -5,7 +5,7 @@ use relm4::{
         gdk_pixbuf::{Colorspace, Pixbuf},
         glib, pango,
         prelude::{
-            BoxExt, ButtonExt, CheckButtonExt, GestureExt, GestureSingleExt, OrientableExt,
+            BoxExt, CheckButtonExt, GestureExt, GestureSingleExt, OrientableExt, PaintableExt,
             PopoverExt, WidgetExt,
         },
     },
@@ -20,7 +20,7 @@ use core_vimpeg::video::service;
 pub struct VideoModel {
     pub video: models::Video,
     pub index: DynamicIndex,
-    pixbuf: Option<Pixbuf>,
+    paintable: Option<gdk::Paintable>,
     is_visible: bool,
 }
 
@@ -36,7 +36,6 @@ pub enum VideoInput {
     SetVisible(bool),
     ZoomIn(i32),
     ZoomOut(i32),
-    ExtractFrames,
 }
 
 #[derive(Debug)]
@@ -70,7 +69,7 @@ impl AsyncFactoryComponent for VideoModel {
                     set_can_shrink: true,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
-                    set_pixbuf: self.pixbuf.as_ref(),
+                    set_paintable: self.paintable.as_ref(),
                     add_controller = gtk::GestureClick {
                         set_button: 3,
                         connect_released[popover] => move |gesture, _, x, y| {
@@ -142,7 +141,7 @@ impl AsyncFactoryComponent for VideoModel {
                                     },
 
                                     gtk::Label {
-                                        set_label: &self.video.rate,
+                                        set_label: &format!("{:.2} fps", self.video.rate),
                                         set_halign: gtk::Align::End,
                                         set_hexpand: true,
                                     },
@@ -204,15 +203,6 @@ impl AsyncFactoryComponent for VideoModel {
                             },
                         },
                     },
-
-                    gtk::Button {
-                        set_label: fl!("extract-frames"),
-                        set_halign: gtk::Align::Fill,
-                        set_margin_bottom: 4,
-                        set_margin_top: 4,
-                        set_css_classes: &["suggested-action"],
-                        connect_clicked => VideoInput::ExtractFrames,
-                    },
                 }
             }
         },
@@ -246,8 +236,7 @@ impl AsyncFactoryComponent for VideoModel {
         _sender: AsyncFactorySender<Self>,
     ) -> Self {
         let filename = video.path.as_str();
-
-        let pixbuf = match service::get_video_thumbnail(filename).await {
+        let paintable = match service::get_video_thumbnail(filename).await {
             Ok(thumb) => {
                 if let Some(data) = thumb.data.as_ref() {
                     let bytes = glib::Bytes::from(data);
@@ -269,7 +258,7 @@ impl AsyncFactoryComponent for VideoModel {
                         rowstride,
                     );
 
-                    Some(pixbuf)
+                    Some(gdk::Texture::for_pixbuf(&pixbuf).current_image())
                 } else {
                     None
                 }
@@ -287,7 +276,7 @@ impl AsyncFactoryComponent for VideoModel {
         Self {
             video,
             index: index.clone(),
-            pixbuf,
+            paintable,
             is_visible: true,
         }
     }
@@ -308,9 +297,6 @@ impl AsyncFactoryComponent for VideoModel {
             }
             VideoInput::ZoomOut(size) => {
                 self.video.thumbnail_size = size;
-            }
-            VideoInput::ExtractFrames => {
-                println!("{}", self.video.name);
             }
         }
     }

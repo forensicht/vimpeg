@@ -19,7 +19,7 @@ pub fn init() -> anyhow::Result<()> {
         .with_line_number(true)
         .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339())
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(tracing::Level::ERROR)
         .with_writer(non_blocking)
         .init();
 

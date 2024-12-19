@@ -2,6 +2,7 @@ pub mod components;
 pub mod config;
 pub mod factories;
 pub mod models;
+pub mod utils;
 
 use std::path::PathBuf;
 

@@ -67,7 +67,7 @@ features = ["fluent-system", "desktop-requester"]
 
 [dependencies.relm4]
 version = "0.9.1"
-features = ["macros", "libadwaita", "gnome_44"]
+features = ["macros", "libadwaita", "gnome_46"]
 
 [dependencies.relm4-components]
 version = "0.9.1"

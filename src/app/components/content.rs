@@ -2,13 +2,12 @@ use std::path::PathBuf;
 
 use relm4::{
     adw,
-    adw::gio,
     component::{
         AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncComponentSender,
         AsyncController,
     },
     gtk,
-    gtk::prelude::OrientableExt,
+    gtk::prelude::{OrientableExt, WidgetExt},
 };
 use relm4_icons::icon_names;
 
@@ -20,9 +19,6 @@ use super::{
 use crate::app::models;
 use crate::fl;
 
-pub const VIDEO_PAGE: i32 = 0;
-pub const IMAGE_PAGE: i32 = 1;
-
 pub struct ContentModel {
     video_list: AsyncController<VideoListModel>,
     image_list: AsyncController<ImageListModel>,
@@ -33,8 +29,7 @@ pub enum ContentInput {
     StartSearch(PathBuf),
     SearchCompleted(usize),
     FilterCount(usize),
-    ConvertVideos(Vec<String>, models::LayoutType, PathBuf),
-    VideoConversionCompleted,
+    ExtractVideos(Vec<String>, models::LayoutType, PathBuf),
     ImageCount(usize),
     Notify(String, u32),
 }
@@ -58,28 +53,44 @@ impl AsyncComponent for ContentModel {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
-            adw::TabBar {
-                set_view: Some(&tab_view),
-                set_autohide: false,
-                set_expand_tabs: false,
-            },
+            adw::ToolbarView {
+                set_top_bar_style: adw::ToolbarStyle::Raised,
 
-            #[name(tab_view)]
-            adw::TabView {
-                append_pinned = &gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    model.video_list.widget(),
-                } -> {
-                    set_title: fl!("video-found"),
-                    set_icon: Some(&gio::ThemedIcon::new(icon_names::CAMERAS)),
+                add_top_bar = &adw::HeaderBar {
+                    set_hexpand: true,
+                    set_halign: gtk::Align::Fill,
+                    set_show_back_button: false,
+                    set_show_end_title_buttons: false,
+                    set_show_start_title_buttons: false,
+
+                    #[wrap(Some)]
+                    set_title_widget = &adw::ViewSwitcher {
+                        set_hexpand: true,
+                        set_stack: Some(&stack),
+                        set_policy: adw::ViewSwitcherPolicy::Wide,
+                    },
                 },
 
-                append_pinned = &gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    model.image_list.widget(),
-                } -> {
-                    set_title: fl!("generated-image"),
-                    set_icon: Some(&gio::ThemedIcon::new(icon_names::IMAGE)),
+                #[name(stack)]
+                #[wrap(Some)]
+                set_content = &adw::ViewStack {
+                    add = &gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        model.video_list.widget(),
+                    } -> {
+                        set_name: Some("video-page"),
+                        set_title: Some(fl!("video-found")),
+                        set_icon_name: Some(icon_names::CAMERAS),
+                    },
+
+                    add = &gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        model.image_list.widget(),
+                    } -> {
+                        set_name: Some("image-page"),
+                        set_title: Some(fl!("generated-image")),
+                        set_icon_name: Some(icon_names::IMAGE),
+                    },
                 },
             },
         }
@@ -97,7 +108,7 @@ impl AsyncComponent for ContentModel {
                     VideoListOutput::SearchCompleted(found) => ContentInput::SearchCompleted(found),
                     VideoListOutput::FilterResult(len) => ContentInput::FilterCount(len),
                     VideoListOutput::ExtractVideos(video_list, layout_type, dst_path) => {
-                        ContentInput::ConvertVideos(video_list, layout_type, dst_path)
+                        ContentInput::ExtractVideos(video_list, layout_type, dst_path)
                     }
                     VideoListOutput::Notify(msg, timeout) => ContentInput::Notify(msg, timeout),
                 });
@@ -106,9 +117,6 @@ impl AsyncComponent for ContentModel {
             ImageListModel::builder()
                 .launch(())
                 .forward(sender.input_sender(), |output| match output {
-                    ImageListOutput::VideoConversionCompleted => {
-                        ContentInput::VideoConversionCompleted
-                    }
                     ImageListOutput::ImageCount(count) => ContentInput::ImageCount(count),
                     ImageListOutput::Notify(msg, timeout) => ContentInput::Notify(msg, timeout),
                 });
@@ -132,13 +140,11 @@ impl AsyncComponent for ContentModel {
     ) {
         match message {
             ContentInput::StartSearch(path) => {
-                widgets.tab_view.nth_page(VIDEO_PAGE).set_loading(true);
                 self.video_list.emit(VideoListInput::StartSearch(path));
             }
-            ContentInput::SearchCompleted(found) => {
-                widgets.tab_view.nth_page(VIDEO_PAGE).set_loading(false);
+            ContentInput::SearchCompleted(video_found) => {
                 sender
-                    .output(ContentOutput::SearchCompleted(found))
+                    .output(ContentOutput::SearchCompleted(video_found))
                     .unwrap_or_default();
             }
             ContentInput::FilterCount(count) => {
@@ -146,18 +152,14 @@ impl AsyncComponent for ContentModel {
                     .output(ContentOutput::FilterCount(count))
                     .unwrap_or_default();
             }
-            ContentInput::ConvertVideos(video_list, layout_type, dst_path) => {
-                let image_page = &widgets.tab_view.nth_page(IMAGE_PAGE);
-                image_page.set_loading(true);
-                widgets.tab_view.set_selected_page(image_page);
-                self.image_list.emit(ImageListInput::ConvertVideos(
+            ContentInput::ExtractVideos(video_list, layout_type, dst_path) => {
+                widgets.stack.set_visible_child_name("image-page");
+
+                self.image_list.emit(ImageListInput::ExtractVideos(
                     video_list,
                     layout_type,
                     dst_path,
                 ));
-            }
-            ContentInput::VideoConversionCompleted => {
-                widgets.tab_view.nth_page(IMAGE_PAGE).set_loading(false);
             }
             ContentInput::ImageCount(count) => {
                 sender
@@ -170,5 +172,7 @@ impl AsyncComponent for ContentModel {
                     .unwrap_or_default();
             }
         }
+
+        self.update_view(widgets, sender);
     }
 }

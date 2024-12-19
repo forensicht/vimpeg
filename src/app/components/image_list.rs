@@ -40,21 +40,21 @@ pub enum ImageListInput {
     ZoomIn,
     ZoomOut,
     ClearImageList,
-    ConvertVideos(Vec<String>, models::LayoutType, PathBuf),
+    ExtractVideos(Vec<String>, models::LayoutType, PathBuf),
     ViewImage(usize),
     SearchEntry(String),
+    Loading(bool),
 }
 
 #[derive(Debug)]
 pub enum ImageListOutput {
-    VideoConversionCompleted,
     ImageCount(usize),
     Notify(String, u32),
 }
 
 #[derive(Debug)]
 pub enum ImageListCommandOutput {
-    VideoConversionCompleted(Result<models::Image>),
+    VideoExtractionCompleted(Result<models::Image>),
 }
 
 #[relm4::component(pub async)]
@@ -133,27 +133,40 @@ impl AsyncComponent for ImageListModel {
                 }
             },
 
-            gtk::Frame {
-                set_css_classes: &["view"],
+            gtk::Overlay {
+                set_hexpand: true,
+                set_vexpand: true,
 
-                gtk::ScrolledWindow {
-                    set_hscrollbar_policy: gtk::PolicyType::Never,
-                    set_hexpand: true,
-                    set_vexpand: true,
+                add_overlay = &gtk::Frame {
+                    set_css_classes: &["view"],
 
-                    #[local_ref]
-                    image_list_widget -> gtk::FlowBox {
-                        set_css_classes: &["list-padding-bottom"],
-                        set_valign: gtk::Align::Start,
-                        set_max_children_per_line: 16,
-                        set_selection_mode: gtk::SelectionMode::None,
-                        set_activate_on_single_click: false,
-                        connect_child_activated[sender] => move |_, child| {
-                            let index = child.index() as usize;
-                            sender.input(ImageListInput::ViewImage(index));
+                    gtk::ScrolledWindow {
+                        set_hscrollbar_policy: gtk::PolicyType::Never,
+                        set_hexpand: true,
+                        set_vexpand: true,
+
+                        #[local_ref]
+                        image_list_widget -> gtk::FlowBox {
+                            set_css_classes: &["list-padding-bottom"],
+                            set_valign: gtk::Align::Start,
+                            set_max_children_per_line: 16,
+                            set_selection_mode: gtk::SelectionMode::None,
+                            set_activate_on_single_click: false,
+                            connect_child_activated[sender] => move |_, child| {
+                                let index = child.index() as usize;
+                                sender.input(ImageListInput::ViewImage(index));
+                            },
                         },
-                    },
-                }
+                    }
+                },
+
+                #[name(spinner)]
+                add_overlay = &gtk::Spinner {
+                    set_size_request: (30, 30),
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::Center,
+                    stop: (),
+                },
             },
         }
     }
@@ -172,8 +185,9 @@ impl AsyncComponent for ImageListModel {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
+    async fn update_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         message: Self::Input,
         sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
@@ -191,7 +205,8 @@ impl AsyncComponent for ImageListModel {
                     .output(ImageListOutput::ImageCount(0))
                     .unwrap_or_default();
             }
-            ImageListInput::ConvertVideos(video_list, layout_type, dst_path) => {
+            ImageListInput::ExtractVideos(video_list, layout_type, dst_path) => {
+                widgets.spinner.start();
                 self.total_videos = video_list.len();
                 self.processed_videos = 0;
                 self.on_convert_videos(video_list, layout_type, dst_path, &sender)
@@ -203,7 +218,16 @@ impl AsyncComponent for ImageListModel {
             ImageListInput::ViewImage(index) => {
                 self.on_view_image(index, &sender).await;
             }
+            ImageListInput::Loading(is_loading) => {
+                if is_loading {
+                    widgets.spinner.start();
+                } else {
+                    widgets.spinner.stop();
+                }
+            }
         }
+
+        self.update_view(widgets, sender);
     }
 
     async fn update_cmd(
@@ -213,7 +237,7 @@ impl AsyncComponent for ImageListModel {
         _root: &Self::Root,
     ) {
         match message {
-            ImageListCommandOutput::VideoConversionCompleted(result) => {
+            ImageListCommandOutput::VideoExtractionCompleted(result) => {
                 match result {
                     Ok(img) => {
                         let mut guard = self.image_list_factory.guard();
@@ -234,9 +258,7 @@ impl AsyncComponent for ImageListModel {
 
                 self.processed_videos += 1;
                 if self.processed_videos == self.total_videos {
-                    sender
-                        .output(ImageListOutput::VideoConversionCompleted)
-                        .unwrap_or_default();
+                    sender.input(ImageListInput::Loading(false));
                 }
             }
         }
@@ -286,9 +308,9 @@ impl ImageListModel {
                                 path: image_path,
                                 thumbnail_size,
                             };
-                            ImageListCommandOutput::VideoConversionCompleted(Ok(img))
+                            ImageListCommandOutput::VideoExtractionCompleted(Ok(img))
                         }
-                        Err(err) => ImageListCommandOutput::VideoConversionCompleted(Err(err)),
+                        Err(err) => ImageListCommandOutput::VideoExtractionCompleted(Err(err)),
                     }
                 });
             }

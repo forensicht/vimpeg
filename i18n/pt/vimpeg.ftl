@@ -9,19 +9,16 @@ quit = Sair
 video-found = Vídeos Encontrados
 generated-image = Imagens Geradas
 open = Abrir
+close = Fechar
 cancel = Cancelar
 extract = Extrair
 extract-frames = Extrair frames
+extract-to-image = Extrair para imagem
 clear-image-list = Limpar lista de imagens
 destination-directory = Diretório de destino
 search = Pesquisar
 directory = Diretório
 select-directory = Selecionar diretório
-duration = Duração
-frame-rate = Taxa de quadros
-total-frames = Total de quadros
-frame-width = Largura do quadro
-frame-height = Altura do quadro
 
 # Toolbar
 zoom-out = Diminuir zoom
@@ -51,6 +48,17 @@ english = Inglês
 portuguese = Português
 spanish = Espanhol
 message-dialog = O programa deve ser reiniciado para que as alterações tenham efeito.
+
+# Extract dialog
+initial-duration = Duração inicial
+final-duration = Duração final
+duration = Duração
+frame-rate = Taxa de quadros
+total-frames = Total de quadros
+frame-width = Largura do quadro
+frame-height = Altura do quadro
+message-invalid-dst-dir = Diretório de destino inválido.
+message-invalid-duration = A duração inicial deve ser maior que a duração final.
 
 # Errors
 generic-error = Um erro ocorreu:

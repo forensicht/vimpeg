@@ -9,19 +9,16 @@ quit = Quit
 video-found = Videos Found
 generated-image = Generated Images
 open = Open
+close = Close
 cancel = Cancel
 extract = Extract
 extract-frames = Extract frames
+extract-to-image = Extract to image
 clear-image-list = Clear image list
 destination-directory = Destination directory
 search = Search
 directory = Directory
 select-directory = Select directory
-duration = Duration
-frame-rate = Frame rate
-total-frames = Total frames
-frame-width = Frame width
-frame-height = Frame height
 
 # Toolbar
 zoom-out = Zoom out
@@ -51,6 +48,18 @@ english = English
 portuguese = Portuguese
 spanish = Spanish
 message-dialog = The program must be restarted for the changes to take effect.
+
+# Extract dialog
+initial-duration = Initial Duration
+final-duration = Final Duration
+duration = Duration
+frame-rate = Frame rate
+total-frames = Total frames
+frame-width = Frame width
+frame-height = Frame height
+message-invalid-dst-dir = Invalid destination directory.
+message-invalid-duration = The initial duration must be greater than the final duration.
+
 
 # Errors
 generic-error = An error ocurred:

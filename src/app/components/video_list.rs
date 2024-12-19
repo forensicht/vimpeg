@@ -16,7 +16,9 @@ use relm4_icons::icon_names;
 
 use super::toolbar::{ToolBarInput, ToolBarModel, ToolBarOutput};
 use crate::app::{
-    components::extract_dialog::{ExtractDialogInput, ExtractDialogModel, ExtractDialogOutput},
+    components::extract_dialog::{
+        ExtractDialogInput, ExtractDialogModel, ExtractDialogOutput, ExtractDialogType,
+    },
     factories::video::{VideoInput, VideoModel, VideoOutput},
     models,
 };
@@ -50,6 +52,7 @@ impl VideoListModel {
 #[derive(Debug)]
 pub enum VideoListInput {
     StartSearch(PathBuf),
+    SearchCompleted(usize),
     PlayVideo(usize),
     ZoomIn,
     ZoomOut,
@@ -132,11 +135,19 @@ impl AsyncComponent for VideoListModel {
                     #[wrap(Some)]
                     set_child = &adw::ButtonContent {
                         set_icon_name: icon_names::ENCODE,
-                        set_label: fl!("extract-frames"),
+                        set_label: fl!("extract"),
                         set_use_underline: true,
                     },
 
                     connect_clicked => VideoListInput::OpenExtractDialog,
+                },
+
+                #[name(spinner)]
+                add_overlay = &gtk::Spinner {
+                    set_size_request: (30, 30),
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::Center,
+                    stop: (),
                 },
             },
         }
@@ -199,8 +210,9 @@ impl AsyncComponent for VideoListModel {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
+    async fn update_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         message: Self::Input,
         sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
@@ -213,13 +225,47 @@ impl AsyncComponent for VideoListModel {
                 self.apply_video_zoom(false).await;
             }
             VideoListInput::StartSearch(path) => {
+                widgets.spinner.start();
                 self.on_search(path, &sender).await;
+            }
+            VideoListInput::SearchCompleted(videos_found) => {
+                widgets.spinner.stop();
+                sender
+                    .output(VideoListOutput::SearchCompleted(videos_found))
+                    .unwrap_or_default();
             }
             VideoListInput::PlayVideo(index) => {
                 self.on_play_video(index, &sender).await;
             }
             VideoListInput::OpenExtractDialog => {
-                self.convert_dialog.emit(ExtractDialogInput::Show);
+                let guard = self.video_list_factory.guard();
+                let selected_videos: Vec<&VideoModel> = guard
+                    .iter()
+                    .filter(|&video_model| video_model.unwrap().video.is_selected)
+                    .map(|video_model| video_model.unwrap())
+                    .collect();
+
+                match selected_videos.len() {
+                    1 => {
+                        if let Some(&video_model) = selected_videos.first() {
+                            let video = video_model.video.clone();
+                            self.convert_dialog
+                                .emit(ExtractDialogInput::Show(ExtractDialogType::Single(video)));
+                        }
+                    }
+                    2.. => {
+                        self.convert_dialog
+                            .emit(ExtractDialogInput::Show(ExtractDialogType::Multi));
+                    }
+                    _ => {
+                        sender
+                            .output(VideoListOutput::Notify(
+                                fl!("select-one-video").to_string(),
+                                3,
+                            ))
+                            .unwrap_or_default();
+                    }
+                }
             }
             VideoListInput::OpenExtractResponse(layout_type, dst_path) => {
                 self.on_open_convert_response(layout_type, dst_path, &sender)
@@ -274,6 +320,8 @@ impl AsyncComponent for VideoListModel {
                     .unwrap_or_default();
             }
         }
+
+        self.update_view(widgets, sender);
     }
 
     async fn update_cmd(
@@ -303,9 +351,8 @@ impl AsyncComponent for VideoListModel {
                         }
                     }
                 }
-                sender
-                    .output(VideoListOutput::SearchCompleted(videos_found))
-                    .unwrap_or_default();
+
+                sender.input(VideoListInput::SearchCompleted(videos_found));
             }
         }
     }
