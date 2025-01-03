@@ -17,7 +17,8 @@ use relm4_icons::icon_names;
 use super::toolbar::{ToolBarInput, ToolBarModel, ToolBarOutput};
 use crate::app::{
     components::extract_dialog::{
-        ExtractDialogInput, ExtractDialogModel, ExtractDialogOutput, ExtractDialogType,
+        ExtractDialogInput, ExtractDialogModel, ExtractDialogOutput, ExtractDialogResponse,
+        ExtractDialogType,
     },
     factories::video::{VideoInput, VideoModel, VideoOutput},
     models,
@@ -28,7 +29,7 @@ use core_vimpeg::video::service;
 pub struct VideoListModel {
     toolbar: AsyncController<ToolBarModel>,
     video_list_factory: AsyncFactoryVecDeque<VideoModel>,
-    convert_dialog: Controller<ExtractDialogModel>,
+    extract_dialog: Controller<ExtractDialogModel>,
     video_list_filter: models::VideoFilter,
     thumbnail_size: i32,
 }
@@ -37,12 +38,12 @@ impl VideoListModel {
     pub fn new(
         toolbar: AsyncController<ToolBarModel>,
         video_list_factory: AsyncFactoryVecDeque<VideoModel>,
-        convert_dialog: Controller<ExtractDialogModel>,
+        extract_dialog: Controller<ExtractDialogModel>,
     ) -> Self {
         Self {
             toolbar,
             video_list_factory,
-            convert_dialog,
+            extract_dialog,
             video_list_filter: models::VideoFilter::default(),
             thumbnail_size: models::video::THUMBNAIL_SIZE,
         }
@@ -57,7 +58,7 @@ pub enum VideoListInput {
     ZoomIn,
     ZoomOut,
     OpenExtractDialog,
-    OpenExtractResponse(models::LayoutType, PathBuf),
+    ExtractDialogResponse(ExtractDialogResponse),
     SelectAllVideos(bool),
     SelectedVideo(bool),
     SearchEntry(String),
@@ -72,7 +73,8 @@ pub enum VideoListInput {
 pub enum VideoListOutput {
     SearchCompleted(usize),
     FilterResult(usize),
-    ExtractVideos(Vec<String>, models::LayoutType, PathBuf),
+    ExtractVideosToImage(Vec<String>, models::LayoutType, bool, PathBuf),
+    ExtractFramesFromVideo(String, u32, u32, u32, bool, PathBuf),
     Notify(String, u32),
 }
 
@@ -194,8 +196,8 @@ impl AsyncComponent for VideoListModel {
             .transient_for(&root)
             .launch(())
             .forward(sender.input_sender(), |output| match output {
-                ExtractDialogOutput::Response(layout_type, dst_path) => {
-                    VideoListInput::OpenExtractResponse(layout_type, dst_path)
+                ExtractDialogOutput::Response(response) => {
+                    VideoListInput::ExtractDialogResponse(response)
                 }
             });
 
@@ -249,12 +251,12 @@ impl AsyncComponent for VideoListModel {
                     1 => {
                         if let Some(&video_model) = selected_videos.first() {
                             let video = video_model.video.clone();
-                            self.convert_dialog
+                            self.extract_dialog
                                 .emit(ExtractDialogInput::Show(ExtractDialogType::Single(video)));
                         }
                     }
                     2.. => {
-                        self.convert_dialog
+                        self.extract_dialog
                             .emit(ExtractDialogInput::Show(ExtractDialogType::Multi));
                     }
                     _ => {
@@ -267,10 +269,29 @@ impl AsyncComponent for VideoListModel {
                     }
                 }
             }
-            VideoListInput::OpenExtractResponse(layout_type, dst_path) => {
-                self.on_open_convert_response(layout_type, dst_path, &sender)
+            VideoListInput::ExtractDialogResponse(response) => match response {
+                ExtractDialogResponse::ExtractToImage(layout_type, show_timestamp, dst_path) => {
+                    self.on_extract_dialog_to_image(layout_type, show_timestamp, dst_path, &sender)
+                        .await;
+                }
+                ExtractDialogResponse::ExtractFrames(
+                    time_start,
+                    time_end,
+                    frame_rate,
+                    show_timestamp,
+                    dst_path,
+                ) => {
+                    self.on_extract_dialog_frames(
+                        time_start,
+                        time_end,
+                        frame_rate,
+                        show_timestamp,
+                        dst_path,
+                        &sender,
+                    )
                     .await;
-            }
+                }
+            },
             VideoListInput::SelectAllVideos(is_selected) => {
                 self.on_select_all_videos(is_selected).await;
             }
@@ -388,9 +409,10 @@ impl VideoListModel {
         }
     }
 
-    async fn on_open_convert_response(
+    async fn on_extract_dialog_to_image(
         &mut self,
         layout_type: models::LayoutType,
+        show_timestamp: bool,
         dst_path: PathBuf,
         sender: &AsyncComponentSender<VideoListModel>,
     ) {
@@ -404,9 +426,48 @@ impl VideoListModel {
 
         if !videos_list.is_empty() {
             sender
-                .output(VideoListOutput::ExtractVideos(
+                .output(VideoListOutput::ExtractVideosToImage(
                     videos_list,
                     layout_type,
+                    show_timestamp,
+                    dst_path,
+                ))
+                .unwrap_or_default();
+        } else {
+            sender
+                .output(VideoListOutput::Notify(
+                    fl!("select-one-video").to_string(),
+                    5,
+                ))
+                .unwrap_or_default();
+        }
+    }
+
+    async fn on_extract_dialog_frames(
+        &mut self,
+        time_start: u32,
+        time_end: u32,
+        frame_rate: u32,
+        show_timestamp: bool,
+        dst_path: PathBuf,
+        sender: &AsyncComponentSender<VideoListModel>,
+    ) {
+        let video_path = self
+            .video_list_factory
+            .guard()
+            .iter()
+            .filter(|&video_model| video_model.unwrap().video.is_selected)
+            .map(|video_model| video_model.unwrap().video.path.clone())
+            .last();
+
+        if let Some(video_path) = video_path {
+            sender
+                .output(VideoListOutput::ExtractFramesFromVideo(
+                    video_path,
+                    time_start,
+                    time_end,
+                    frame_rate,
+                    show_timestamp,
                     dst_path,
                 ))
                 .unwrap_or_default();

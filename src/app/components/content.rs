@@ -29,7 +29,8 @@ pub enum ContentInput {
     StartSearch(PathBuf),
     SearchCompleted(usize),
     FilterCount(usize),
-    ExtractVideos(Vec<String>, models::LayoutType, PathBuf),
+    ExtractVideosToImage(Vec<String>, models::LayoutType, bool, PathBuf),
+    ExtractFramesFromVideo(String, u32, u32, u32, bool, PathBuf),
     ImageCount(usize),
     Notify(String, u32),
 }
@@ -107,9 +108,32 @@ impl AsyncComponent for ContentModel {
                 .forward(sender.input_sender(), |output| match output {
                     VideoListOutput::SearchCompleted(found) => ContentInput::SearchCompleted(found),
                     VideoListOutput::FilterResult(len) => ContentInput::FilterCount(len),
-                    VideoListOutput::ExtractVideos(video_list, layout_type, dst_path) => {
-                        ContentInput::ExtractVideos(video_list, layout_type, dst_path)
-                    }
+                    VideoListOutput::ExtractVideosToImage(
+                        video_list,
+                        layout_type,
+                        show_timestamp,
+                        dst_path,
+                    ) => ContentInput::ExtractVideosToImage(
+                        video_list,
+                        layout_type,
+                        show_timestamp,
+                        dst_path,
+                    ),
+                    VideoListOutput::ExtractFramesFromVideo(
+                        video_path,
+                        time_start,
+                        time_end,
+                        frame_rate,
+                        show_timestamp,
+                        dst_path,
+                    ) => ContentInput::ExtractFramesFromVideo(
+                        video_path,
+                        time_start,
+                        time_end,
+                        frame_rate,
+                        show_timestamp,
+                        dst_path,
+                    ),
                     VideoListOutput::Notify(msg, timeout) => ContentInput::Notify(msg, timeout),
                 });
 
@@ -152,12 +176,37 @@ impl AsyncComponent for ContentModel {
                     .output(ContentOutput::FilterCount(count))
                     .unwrap_or_default();
             }
-            ContentInput::ExtractVideos(video_list, layout_type, dst_path) => {
+            ContentInput::ExtractVideosToImage(
+                video_list,
+                layout_type,
+                show_timestamp,
+                dst_path,
+            ) => {
                 widgets.stack.set_visible_child_name("image-page");
 
-                self.image_list.emit(ImageListInput::ExtractVideos(
+                self.image_list.emit(ImageListInput::ExtractVideosToImage(
                     video_list,
                     layout_type,
+                    show_timestamp,
+                    dst_path,
+                ));
+            }
+            ContentInput::ExtractFramesFromVideo(
+                video_path,
+                time_start,
+                time_end,
+                frame_rate,
+                show_timestamp,
+                dst_path,
+            ) => {
+                widgets.stack.set_visible_child_name("image-page");
+
+                self.image_list.emit(ImageListInput::ExtractFramesFromVideo(
+                    video_path,
+                    time_start,
+                    time_end,
+                    frame_rate,
+                    show_timestamp,
                     dst_path,
                 ));
             }

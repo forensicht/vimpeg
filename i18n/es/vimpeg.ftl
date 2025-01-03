@@ -50,8 +50,8 @@ spanish = Español
 message-dialog = Se debe reiniciar el programa para que los cambios surtan efecto..
 
 # Extract dialog
-initial-duration = Duración inicial
-final-duration = Duración final
+time-start = Hora de inicio
+time-end = Hora de finalización
 duration = Duración
 frame-rate = Velocidad de cuadros
 total-frames = Marcos totales
@@ -59,6 +59,7 @@ frame-width = Ancho del marco
 frame-height = Altura del marco
 message-invalid-dst-dir = Directorio de destino no válido.
 message-invalid-duration = La duración inicial debe ser mayor que la duración final.
+message-invalid-frame-rate = Introduzca un valor válido para la Velocidad de cuadros.
 
 # Errors
 generic-error = Ocurrió un error:

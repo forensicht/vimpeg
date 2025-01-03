@@ -52,3 +52,10 @@ toolbarview>revealer {
 .input-error {
     border: solid #ff0000 1px;
 }
+
+.badge {
+    font-size: .8em;
+    background-color: @accent_bg_color;
+    border-radius: 6px;
+    padding: 0 3px;
+}

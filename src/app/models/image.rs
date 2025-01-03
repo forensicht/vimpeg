@@ -5,5 +5,6 @@ pub const THUMBNAIL_SIZE: i32 = 160;
 pub struct Image {
     pub name: String,
     pub path: String,
+    pub total_images: usize,
     pub thumbnail_size: i32,
 }

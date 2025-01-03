@@ -1,8 +1,9 @@
 use relm4::{
     factory::{AsyncFactoryComponent, AsyncFactorySender, DynamicIndex},
-    gtk,
-    gtk::pango,
-    gtk::prelude::{OrientableExt, WidgetExt},
+    gtk::{
+        self, gio, pango,
+        prelude::{OrientableExt, WidgetExt},
+    },
     loading_widgets::LoadingWidgets,
     view, RelmWidgetExt,
 };
@@ -36,14 +37,29 @@ impl AsyncFactoryComponent for ImageModel {
             set_css_classes: &["card", "activatable", "media-item-box", "border-spacing"],
             set_tooltip_text: Some(&self.image.name),
 
-            gtk::Image {
+            gtk::Overlay {
                 #[watch]
                 set_size_request: (self.image.thumbnail_size, self.image.thumbnail_size),
-                set_margin_all: 3,
-                set_halign: gtk::Align::Center,
-                set_valign: gtk::Align::Center,
-                #[watch]
-                set_from_file: Some(&self.image.path),
+
+                add_overlay = &gtk::Picture {
+                    set_margin_all: 3,
+                    set_content_fit: gtk::ContentFit::Contain,
+                    set_can_shrink: true,
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::Center,
+                    #[watch]
+                    set_file: Some(&gio::File::for_parse_name(&self.image.path)),
+                },
+
+                add_overlay = &gtk::Label {
+                    set_visible: if self.image.total_images > 1 { true } else { false },
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
+                    set_margin_end: 3,
+                    set_margin_top: 3,
+                    set_css_classes: &["body", "badge"],
+                    set_label: &format!("+{}", self.image.total_images - 1),
+                },
             },
 
             gtk::Label {

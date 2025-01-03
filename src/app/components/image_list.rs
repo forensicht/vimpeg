@@ -40,7 +40,8 @@ pub enum ImageListInput {
     ZoomIn,
     ZoomOut,
     ClearImageList,
-    ExtractVideos(Vec<String>, models::LayoutType, PathBuf),
+    ExtractVideosToImage(Vec<String>, models::LayoutType, bool, PathBuf),
+    ExtractFramesFromVideo(String, u32, u32, u32, bool, PathBuf),
     ViewImage(usize),
     SearchEntry(String),
     Loading(bool),
@@ -205,12 +206,45 @@ impl AsyncComponent for ImageListModel {
                     .output(ImageListOutput::ImageCount(0))
                     .unwrap_or_default();
             }
-            ImageListInput::ExtractVideos(video_list, layout_type, dst_path) => {
+            ImageListInput::ExtractVideosToImage(
+                video_list,
+                layout_type,
+                show_timestamp,
+                dst_path,
+            ) => {
                 widgets.spinner.start();
                 self.total_videos = video_list.len();
                 self.processed_videos = 0;
-                self.on_convert_videos(video_list, layout_type, dst_path, &sender)
-                    .await;
+                self.on_extract_videos_to_image(
+                    video_list,
+                    layout_type,
+                    show_timestamp,
+                    dst_path,
+                    &sender,
+                )
+                .await;
+            }
+            ImageListInput::ExtractFramesFromVideo(
+                video_path,
+                time_start,
+                time_end,
+                frame_rate,
+                show_timestamp,
+                dst_path,
+            ) => {
+                widgets.spinner.start();
+                self.total_videos = 1;
+                self.processed_videos = 0;
+                self.on_extract_frames_from_video(
+                    &video_path,
+                    time_start,
+                    time_end,
+                    frame_rate,
+                    show_timestamp,
+                    dst_path,
+                    &sender,
+                )
+                .await;
             }
             ImageListInput::SearchEntry(query) => {
                 self.apply_image_filter(&query).await;
@@ -266,10 +300,11 @@ impl AsyncComponent for ImageListModel {
 }
 
 impl ImageListModel {
-    async fn on_convert_videos(
+    async fn on_extract_videos_to_image(
         &mut self,
         video_list: Vec<String>,
         layout_type: models::LayoutType,
+        show_timestamp: bool,
         dst_path: PathBuf,
         sender: &AsyncComponentSender<ImageListModel>,
     ) {
@@ -293,6 +328,7 @@ impl ImageListModel {
                         image_path.clone(),
                         cols,
                         rows,
+                        show_timestamp,
                     )
                     .await
                     {
@@ -306,6 +342,7 @@ impl ImageListModel {
                             let img = models::Image {
                                 name: filename,
                                 path: image_path,
+                                total_images: 1,
                                 thumbnail_size,
                             };
                             ImageListCommandOutput::VideoExtractionCompleted(Ok(img))
@@ -315,6 +352,50 @@ impl ImageListModel {
                 });
             }
         }
+    }
+
+    async fn on_extract_frames_from_video(
+        &mut self,
+        video_path: &str,
+        time_start: u32,
+        time_end: u32,
+        frame_rate: u32,
+        show_timestamp: bool,
+        dst_path: PathBuf,
+        sender: &AsyncComponentSender<ImageListModel>,
+    ) {
+        let video_path = video_path.to_owned();
+        let save_path = dst_path.to_str().unwrap_or("").to_string();
+        let thumbnail_size = self.thumbnail_size;
+
+        sender.oneshot_command(async move {
+            match service::dump_video_frames_by_time(
+                video_path,
+                save_path,
+                time_start.into(),
+                time_end.into(),
+                frame_rate,
+                show_timestamp,
+            )
+            .await
+            {
+                Ok(result) => {
+                    let image_path = result
+                        .image_paths
+                        .last()
+                        .map(|s| s.to_owned())
+                        .unwrap_or_default();
+                    let img = models::Image {
+                        name: result.file_name,
+                        path: image_path,
+                        total_images: result.image_paths.len(),
+                        thumbnail_size,
+                    };
+                    ImageListCommandOutput::VideoExtractionCompleted(Ok(img))
+                }
+                Err(err) => ImageListCommandOutput::VideoExtractionCompleted(Err(err)),
+            }
+        });
     }
 
     async fn apply_image_filter(&mut self, query: &str) {

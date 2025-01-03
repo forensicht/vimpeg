@@ -50,8 +50,8 @@ spanish = Espanhol
 message-dialog = O programa deve ser reiniciado para que as alterações tenham efeito.
 
 # Extract dialog
-initial-duration = Duração inicial
-final-duration = Duração final
+time-start = Hora de início
+time-end = Hora final
 duration = Duração
 frame-rate = Taxa de quadros
 total-frames = Total de quadros
@@ -59,6 +59,7 @@ frame-width = Largura do quadro
 frame-height = Altura do quadro
 message-invalid-dst-dir = Diretório de destino inválido.
 message-invalid-duration = A duração inicial deve ser maior que a duração final.
+message-invalid-frame-rate = Insira um valor válido para Taxa de quadros.
 
 # Errors
 generic-error = Um erro ocorreu:

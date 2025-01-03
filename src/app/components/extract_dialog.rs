@@ -40,13 +40,19 @@ pub enum ExtractDialogInput {
 
 #[derive(Debug)]
 pub enum ExtractDialogOutput {
-    Response(models::LayoutType, PathBuf),
+    Response(ExtractDialogResponse),
 }
 
 #[derive(Debug)]
 pub enum ExtractDialogType {
     Multi,
     Single(models::Video),
+}
+
+#[derive(Debug)]
+pub enum ExtractDialogResponse {
+    ExtractToImage(models::LayoutType, bool, PathBuf),
+    ExtractFrames(u32, u32, u32, bool, PathBuf),
 }
 
 #[relm4::component(pub)]
@@ -59,7 +65,7 @@ impl Component for ExtractDialogModel {
     view! {
         #[root]
         adw::Window {
-            set_default_size: (500, 362),
+            set_default_size: (500, 415),
             set_hide_on_close: true,
             set_modal: true,
             set_resizable: false,
@@ -294,14 +300,14 @@ impl Component for ExtractDialogModel {
                                     gtk::ListBoxRow {
                                         gtk::Box {
                                             gtk::Label {
-                                                set_label: fl!("initial-duration"),
+                                                set_label: fl!("time-start"),
                                                 set_xalign: 0f32,
                                                 set_halign: gtk::Align::Start,
                                                 set_valign: gtk::Align::Center,
                                                 set_hexpand: true,
                                             },
 
-                                            #[name(entry_initial)]
+                                            #[name(entry_time_start)]
                                             gtk::Entry {
                                                 set_halign: gtk::Align::End,
                                                 set_valign: gtk::Align::Center,
@@ -319,14 +325,14 @@ impl Component for ExtractDialogModel {
                                     gtk::ListBoxRow {
                                         gtk::Box {
                                             gtk::Label {
-                                                set_label: fl!("final-duration"),
+                                                set_label: fl!("time-end"),
                                                 set_xalign: 0f32,
                                                 set_halign: gtk::Align::Start,
                                                 set_valign: gtk::Align::Center,
                                                 set_hexpand: true,
                                             },
 
-                                            #[name(entry_final)]
+                                            #[name(entry_time_end)]
                                             gtk::Entry {
                                                 set_halign: gtk::Align::End,
                                                 set_valign: gtk::Align::Center,
@@ -373,22 +379,55 @@ impl Component for ExtractDialogModel {
                     },
                 },
 
-                #[name(entry_dir)]
-                add_bottom_bar = &gtk::Entry {
-                    #[watch]
-                    set_text?: &model.file_path.to_str(),
-                    set_margin_all: 6,
-                    set_hexpand: true,
-                    set_halign: gtk::Align::Fill,
-                    set_placeholder_text: Some(fl!("destination-directory")),
-                    set_secondary_icon_name: Some(icon_names::FOLDER_OPEN_FILLED),
-                    set_secondary_icon_tooltip_text: Some(fl!("select-directory")),
-                    connect_icon_release[sender] => move |_, icon_position| {
-                        if icon_position == gtk::EntryIconPosition::Secondary {
-                            sender.input(ExtractDialogInput::OpenFileRequest);
-                        }
+                add_bottom_bar = &gtk::ListBox {
+                    set_margin_bottom: 6,
+                    set_margin_top: 3,
+                    set_margin_start: 6,
+                    set_margin_end: 6,
+                    set_selection_mode: gtk::SelectionMode::None,
+                    set_show_separators: false,
+                    set_css_classes: &["rich-list", "boxed-list"],
+
+                    gtk::ListBoxRow {
+                        gtk::Box {
+                            gtk::Label {
+                                set_label: "Show timestamp",
+                                set_xalign: 0f32,
+                                set_halign: gtk::Align::Start,
+                                set_valign: gtk::Align::Center,
+                                set_hexpand: true,
+                            },
+
+                            #[name(show_timestamp)]
+                            gtk::Switch {
+                                set_halign: gtk::Align::End,
+                                set_valign: gtk::Align::Center,
+                                set_active: true,
+                            },
+                        },
+                    },
+
+                    gtk::ListBoxRow {
+                        #[name(entry_dir)]
+                        gtk::Entry {
+                            #[watch]
+                            set_text?: &model.file_path.to_str(),
+                            set_margin_top: 6,
+                            set_margin_bottom: 6,
+                            set_hexpand: true,
+                            set_halign: gtk::Align::Fill,
+                            set_placeholder_text: Some(fl!("destination-directory")),
+                            set_secondary_icon_name: Some(icon_names::FOLDER_OPEN_FILLED),
+                            set_secondary_icon_tooltip_text: Some(fl!("select-directory")),
+                            connect_icon_release[sender] => move |_, icon_position| {
+                                if icon_position == gtk::EntryIconPosition::Secondary {
+                                    sender.input(ExtractDialogInput::OpenFileRequest);
+                                }
+                            },
+                        },
                     },
                 },
+
             },
         }
     }
@@ -470,10 +509,12 @@ impl Component for ExtractDialogModel {
             }
             ExtractDialogInput::Hide => root.close(),
             ExtractDialogInput::Extract => {
-                if self.video.is_some() {
-                    self.extract_frames(widgets, sender.clone());
-                } else {
-                    self.extract_to_image(widgets, sender.clone());
+                if let Some(child_name) = widgets.stack.visible_child_name() {
+                    if child_name.as_str() == "extract-frames" {
+                        self.extract_frames(widgets, sender.clone());
+                    } else {
+                        self.extract_to_image(widgets, sender.clone());
+                    }
                 }
             }
             ExtractDialogInput::SelectLayout(index) => {
@@ -558,8 +599,13 @@ fn init_layout_list_factory(layout_guard: &mut FactoryVecDequeGuard<LayoutModel>
 
 impl ExtractDialogModel {
     fn clear_errors(&self, widgets: &mut ExtractDialogModelWidgets) {
-        widgets.entry_initial.set_class_active("input-error", false);
-        widgets.entry_final.set_class_active("input-error", false);
+        widgets
+            .entry_time_start
+            .set_class_active("input-error", false);
+        widgets
+            .entry_time_end
+            .set_class_active("input-error", false);
+        widgets.spin_rate.set_class_active("input-error", false);
         widgets.entry_dir.set_class_active("input-error", false);
     }
 
@@ -582,9 +628,12 @@ impl ExtractDialogModel {
         }
 
         if let Some(layout_type) = self.layout_type {
+            let show_timestamp = widgets.show_timestamp.state();
             let file_path = self.file_path.clone();
             sender
-                .output(ExtractDialogOutput::Response(layout_type, file_path))
+                .output(ExtractDialogOutput::Response(
+                    ExtractDialogResponse::ExtractToImage(layout_type, show_timestamp, file_path),
+                ))
                 .unwrap_or_default();
             sender.input(ExtractDialogInput::Hide);
         }
@@ -593,41 +642,53 @@ impl ExtractDialogModel {
     fn extract_frames(
         &self,
         widgets: &mut ExtractDialogModelWidgets,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) {
         let banner = &widgets.banner;
 
-        let entry_initial = &widgets.entry_initial;
-        let initial_duration = entry_initial
+        let entry_time_start = &widgets.entry_time_start;
+        let time_start = entry_time_start
             .text()
             .split(':')
             .map(|v| v.parse::<u32>().unwrap_or(0))
             .collect::<Vec<u32>>();
-        let initial_duration = if initial_duration.len() == 3 {
-            initial_duration[0] * 3600 + initial_duration[1] * 60 + initial_duration[2]
+        let time_start = if time_start.len() == 3 {
+            time_start[0] * 3600 + time_start[1] * 60 + time_start[2]
         } else {
             0
         };
 
-        let entry_final = &widgets.entry_final;
-        let final_duration = entry_final
+        let entry_time_end = &widgets.entry_time_end;
+        let time_end = entry_time_end
             .text()
             .split(':')
             .map(|v| v.parse::<u32>().unwrap_or(0))
             .collect::<Vec<u32>>();
-        let final_duration = if final_duration.len() == 3 {
-            final_duration[0] * 3600 + final_duration[1] * 60 + final_duration[2]
+        let time_end = if time_end.len() == 3 {
+            time_end[0] * 3600 + time_end[1] * 60 + time_end[2]
         } else {
             0
         };
 
-        if initial_duration >= final_duration {
-            entry_initial.set_class_active("input-error", true);
+        if time_start >= time_end {
+            entry_time_start.set_class_active("input-error", true);
             banner.set_title(fl!("message-invalid-duration"));
             banner.set_revealed(true);
             return;
         } else {
-            entry_initial.set_class_active("input-error", false);
+            entry_time_start.set_class_active("input-error", false);
+            banner.set_revealed(false);
+        }
+
+        let spin_rate = &widgets.spin_rate;
+        let frame_rate = spin_rate.value() as u32;
+        if frame_rate == 0 {
+            spin_rate.set_class_active("input-error", true);
+            banner.set_title(fl!("message-invalid-frame-rate"));
+            banner.set_revealed(true);
+            return;
+        } else {
+            spin_rate.set_class_active("input-error", false);
             banner.set_revealed(false);
         }
 
@@ -636,9 +697,25 @@ impl ExtractDialogModel {
             entry_dir.set_class_active("input-error", true);
             banner.set_title(fl!("message-invalid-dst-dir"));
             banner.set_revealed(true);
+            return;
         } else {
             entry_dir.set_class_active("input-error", false);
             banner.set_revealed(false);
         }
+
+        let show_timestamp = widgets.show_timestamp.state();
+        let file_path = self.file_path.clone();
+        sender
+            .output(ExtractDialogOutput::Response(
+                ExtractDialogResponse::ExtractFrames(
+                    time_start,
+                    time_end,
+                    frame_rate,
+                    show_timestamp,
+                    file_path,
+                ),
+            ))
+            .unwrap_or_default();
+        sender.input(ExtractDialogInput::Hide);
     }
 }

@@ -50,8 +50,8 @@ spanish = Spanish
 message-dialog = The program must be restarted for the changes to take effect.
 
 # Extract dialog
-initial-duration = Initial Duration
-final-duration = Final Duration
+time-start = Time start
+time-end = Time end
 duration = Duration
 frame-rate = Frame rate
 total-frames = Total frames
@@ -59,7 +59,7 @@ frame-width = Frame width
 frame-height = Frame height
 message-invalid-dst-dir = Invalid destination directory.
 message-invalid-duration = The initial duration must be greater than the final duration.
-
+message-invalid-frame-rate = Enter a valid value for Frame Rate.
 
 # Errors
 generic-error = An error ocurred:
