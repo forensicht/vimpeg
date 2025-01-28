@@ -55,7 +55,7 @@ impl AsyncComponent for ContentModel {
             set_orientation: gtk::Orientation::Vertical,
 
             adw::ToolbarView {
-                set_top_bar_style: adw::ToolbarStyle::Raised,
+                set_top_bar_style: adw::ToolbarStyle::Flat,
 
                 add_top_bar = &adw::HeaderBar {
                     set_hexpand: true,
@@ -67,6 +67,7 @@ impl AsyncComponent for ContentModel {
                     #[wrap(Some)]
                     set_title_widget = &adw::ViewSwitcher {
                         set_hexpand: true,
+                        set_halign: gtk::Align::Start,
                         set_stack: Some(&stack),
                         set_policy: adw::ViewSwitcherPolicy::Wide,
                     },

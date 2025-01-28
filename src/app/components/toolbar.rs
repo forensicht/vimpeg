@@ -55,7 +55,7 @@ impl AsyncComponent for ToolBarModel {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_hexpand: true,
-            set_margin_bottom: 4,
+            set_margin_bottom: 3,
             set_spacing: 6,
 
             gtk::Box {

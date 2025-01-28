@@ -96,7 +96,7 @@ impl AsyncComponent for VideoListModel {
             set_margin_bottom: 3,
             set_margin_end: 6,
             set_margin_start: 6,
-            set_margin_top: 4,
+            // set_margin_top: 4,
 
             model.toolbar.widget(),
 

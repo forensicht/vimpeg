@@ -107,16 +107,25 @@ impl AsyncComponent for App {
                 #[name = "content_header"]
                 append = &adw::HeaderBar {
                     set_hexpand: true,
-                    set_css_classes: &["flat"],
                     set_show_start_title_buttons: false,
                     set_show_end_title_buttons: true,
 
-                    pack_end = &gtk::MenuButton {
-                        set_tooltip: fl!("menu"),
-                        set_valign: gtk::Align::Center,
-                        set_css_classes: &["flat"],
-                        set_icon_name: icon_names::MENU,
-                        set_menu_model: Some(&primary_menu),
+                    pack_start = &gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 6,
+
+                        gtk::Image {
+                            set_size_request: (26, 26),
+                            set_resource: Some("/com/github/forensicht/vimpeg/icons/vimpeg-small.ico"),
+                        },
+
+                        gtk::MenuButton {
+                            set_tooltip: fl!("menu"),
+                            set_valign: gtk::Align::Center,
+                            set_css_classes: &["flat"],
+                            set_icon_name: icon_names::MENU,
+                            set_menu_model: Some(&primary_menu),
+                        },
                     },
 
                     #[wrap(Some)]

@@ -7,8 +7,8 @@
 
     <gresource prefix="/com/github/forensicht/vimpeg/icons">
         <file alias="Vimpeg.svg" preprocess="xml-stripblanks">icons/Vimpeg.svg</file>
+        <file alias="vimpeg-small.ico">icons/vimpeg-small.ico</file>
         <file alias="en.png">icons/actions/en.png</file>
-        <file alias="es.png">icons/actions/es.png</file>
         <file alias="pt.png">icons/actions/pt.png</file>
     </gresource>
 

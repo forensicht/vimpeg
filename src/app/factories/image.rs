@@ -52,7 +52,7 @@ impl AsyncFactoryComponent for ImageModel {
                 },
 
                 add_overlay = &gtk::Label {
-                    set_visible: if self.image.total_images > 1 { true } else { false },
+                    set_visible: self.image.total_images > 1,
                     set_halign: gtk::Align::End,
                     set_valign: gtk::Align::Start,
                     set_margin_end: 3,

@@ -36,12 +36,12 @@ pub(crate) fn get_settings() -> anyhow::Result<SettingsToml> {
 }
 
 fn set_localization(language: String) -> anyhow::Result<()> {
-    let localizer = localization::localizer();
+    let language_localizer = localization::localizer();
     let requested_language: LanguageIdentifier = language
         .parse()
         .context("Failed to parsing language identifier")?;
 
-    if let Err(error) = localizer.select(&[requested_language]) {
+    if let Err(error) = language_localizer.select(&[requested_language]) {
         anyhow::bail!("Failed to loading language: {error}");
     }
 

@@ -145,36 +145,6 @@ impl AsyncComponent for PreferencesModel {
                                         }
                                     },
                                 },
-                                adw::ActionRow {
-                                    set_title: fl!("spanish"),
-                                    add_prefix = &gtk::Box {
-                                        set_halign: gtk::Align::Center,
-                                        set_valign: gtk::Align::Center,
-                                        append = &gtk::Image {
-                                            set_width_request: 64,
-                                            set_height_request: 44,
-                                            set_halign: gtk::Align::Center,
-                                            set_valign: gtk::Align::Center,
-                                            set_resource: Some("/com/github/forensicht/vimpeg/icons/es.png"),
-                                        }
-                                    },
-                                    add_suffix = &gtk::Box {
-                                        set_halign: gtk::Align::Center,
-                                        set_valign: gtk::Align::Center,
-                                        append = &gtk::CheckButton {
-                                            set_group: Some(&chk_language),
-                                            set_active: matches!(model.preference.language, models::Language::Spanish),
-                                            connect_toggled[sender] => move |chk_button| {
-                                                if chk_button.is_active() {
-                                                    sender
-                                                        .input_sender()
-                                                        .send(PreferencesInput::SetLanguage(models::Language::Spanish))
-                                                        .unwrap_or_default();
-                                                }
-                                            },
-                                        }
-                                    },
-                                },
                             }
                         }
                     }

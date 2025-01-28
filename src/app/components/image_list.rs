@@ -71,12 +71,12 @@ impl AsyncComponent for ImageListModel {
             set_margin_bottom: 3,
             set_margin_end: 6,
             set_margin_start: 6,
-            set_margin_top: 4,
+            // set_margin_top: 4,
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_hexpand: true,
-                set_margin_bottom: 4,
+                set_margin_bottom: 3,
                 set_spacing: 6,
 
                 gtk::Box {
@@ -354,6 +354,7 @@ impl ImageListModel {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn on_extract_frames_from_video(
         &mut self,
         video_path: &str,
